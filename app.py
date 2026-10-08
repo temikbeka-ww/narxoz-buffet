@@ -231,10 +231,6 @@ TEXT = {
         "События зависимы в выбранной модели.",
         "Events are dependent in the selected model."
     ),
-    "small_note": (
-        "Проценты рассчитаны по задаваемым вариантам ожидания, а не по статистике посещений Narxoz.",
-        "Percentages are based on adjustable queue cases, not measured Narxoz visitor statistics."
-    ),
     "floor": ("этаж", "floor"),
 }
 
