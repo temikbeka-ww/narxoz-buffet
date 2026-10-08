@@ -31,6 +31,11 @@ html, body, [data-testid="stAppViewContainer"] {font-family:'DM Sans',system-ui,
 [data-testid="stAppViewContainer"] {background:radial-gradient(ellipse 65% 28% at 55% 1%,#1e443d 0%,#0d1a1b 78%,#0b1618 100%) fixed;}
 [data-testid="stHeader"] {background:transparent;}
 .block-container {max-width:1190px;padding-top:1.7rem;padding-bottom:4rem;}
+[data-testid="stAppViewContainer"] h1, [data-testid="stAppViewContainer"] h2,
+[data-testid="stAppViewContainer"] h3, [data-testid="stAppViewContainer"] h4,
+[data-testid="stAppViewContainer"] p, [data-testid="stAppViewContainer"] label,
+[data-testid="stAppViewContainer"] [data-testid="stMarkdownContainer"] {color:#e8f5ef;}
+[data-testid="stAppViewContainer"] [data-testid="stCaptionContainer"] p {color:#b9cfc2;}
 h1,h2,h3 {font-family:'Space Grotesk',system-ui,sans-serif;letter-spacing:-.04em;}
 .hero{padding:12px 0 24px;}
 .headbar{display:flex;align-items:center;gap:12px;margin-bottom:29px;}
@@ -100,9 +105,13 @@ TEXT = {
         "total": "Общее время (включая еду)",
         "eatwindow": "Осталось минут на еду",
         "margin": "Запас до начала пары",
-        "note": "Расчёт основан на редактируемых учебных примерах, а не на измерениях в Narxoz.",
+        "note": "Проценты — доля подходящих примеров времени ожидания. Это не официальные измерения Narxoz; при других очередях результат может отличаться.",
+        "route_warning": "Даже если очереди нет, на этот маршрут, покупку и еду нужно {mins:.1f} мин при перемене {breaks:.0f} мин. Поэтому 0% — ограничение времени, а не ошибка графика.",
+        "queue_warning": "В данном наборе ожиданий нет ни одного случая, который помещается в перемену. Попробуй сократить время на еду или выбрать более близкий буфет.",
+        "perfect_sample": "Все {count} примеров помещаются в перемену. 100% относится к учебной таблице, а не означает гарантию в реальности.",
+        "compare_route": "Для маршрута {start} → буфет → {end}; еда {eat:g} мин. Далёкие буфеты могут дать 0% просто из-за переходов.",
         "third_same": "Важное уточнение: если предыдущая и следующая пары на 3-м этаже, а ты идёшь в буфет 3-го, после очереди и оплаты обычно остаётся 8–10 минут на еду при стандартных настройках этого примера.",
-        "third_other": "На 3-й этаж из другого этажа приходишь позже. Поэтому для этого маршрута мы используем другой, более длинный набор ожиданий.",
+        "third_other": "Если идти на 3-й из другого этажа, ты попадёшь в очередь позже. Мы считаем время перехода и отдельную очередь, не добавляя дорогу дважды.",
         "generic": "Поменяй этаж или длительность еды: процент сразу пересчитается по тем же наблюдениям — без случайных скачков.",
         "successes": "успешных случаев из",
         "detail": "🧮 Откуда получился процент?",
@@ -116,7 +125,7 @@ TEXT = {
         "hot": "Популярный 3-й этаж (50%)",
         "choice_note": "Доли выбора условные. Они используются только в формуле полной вероятности и проверке независимости.",
         "data": "📝 Наблюдения: можно изменить",
-        "data_help": "Это таблица примеров времени ожидания. 3-й этаж разделён на приход с 3-го этажа и с других этажей. Числа задаются через запятую, в минутах. Сохраняются в текущей сессии.",
+        "data_help": "Это не измеренная статистика, а настраиваемые примеры. На 3-м этаже ожидание 4–6 мин, если ты уже на 3-м, и обычно больше для тех, кто пришёл с другого этажа. Переход между этажами учитывается отдельно. Введи реальные замеры через запятую (минуты), чтобы улучшить оценку.",
         "data_groups": "Группа",
         "data_values": "Очередь, минуты (через запятую)",
         "save": "✅ Применить данные",
@@ -190,9 +199,13 @@ TEXT = {
         "total": "Total (including eating)",
         "eatwindow": "Minutes available to eat",
         "margin": "Time left before class",
-        "note": "The calculation uses editable illustrative examples, not measurements from Narxoz.",
+        "note": "Percentages are proportions of example waiting times that fit this trip. These are not official Narxoz measurements.",
+        "route_warning": "Even with no queue, walking, buying, and eating require {mins:.1f} min, but the break is {breaks:.0f} min. The 0% result comes from the route, not a chart error.",
+        "queue_warning": "None of the example waits fit within the break. Try less eating time or a closer buffet.",
+        "perfect_sample": "All {count} example waits fit within the break. 100% describes this example dataset, not a real-world guarantee.",
+        "compare_route": "For {start} → buffet → {end}; eating {eat:g} min. Distant floors may score 0% because of travel alone.",
         "third_same": "Important: if both your previous and next classes are on floor 3 and you visit the floor 3 buffet, the normal example leaves around 8–10 minutes to eat after waiting and paying.",
-        "third_other": "Coming to floor 3 from another floor means joining the queue later. We use a separate, longer set of waiting-time examples for this case.",
+        "third_other": "Arriving from another floor means joining the queue later. Walking time and waiting time are modeled separately, without double-counting the trip.",
         "generic": "Change a floor or eating duration. The percentage will update from the same observations without random jumps.",
         "successes": "successful cases out of",
         "detail": "🧮 How is this percentage calculated?",
@@ -206,7 +219,7 @@ TEXT = {
         "hot": "Floor 3 is popular (50%)",
         "choice_note": "These selection shares are hypothetical and only affect the total-probability and independence examples.",
         "data": "📝 Edit observations",
-        "data_help": "These are illustrative waiting-time examples. Floor 3 has separate rows for students already on floor 3 and students coming from other floors. Enter minutes separated by commas. Stored for this session only.",
+        "data_help": "These are editable examples, not measured statistics. Floor 3 assumes 4–6 min waits for students already there, and longer waits for arrivals from other floors. Walking is counted separately. Replace these values with actual timed waits (comma-separated minutes).",
         "data_groups": "Group",
         "data_values": "Waiting times (comma-separated minutes)",
         "save": "✅ Apply data",
@@ -252,7 +265,7 @@ TEXT = {
 for key, val in {
     "lang": "ru", "origin": 3, "buffet": 3, "destination": 3,
     "crowd": "normal", "pace": "normal", "break_minutes": 15,
-    "buy_minutes": 1.0, "eat_minutes": 8.0,
+    "buy_minutes": 1.0, "eat_minutes": 5.0,
     "choice_weight": "equal", "editor_version": 0,
 }.items():
     if key not in st.session_state:
@@ -378,6 +391,13 @@ with right:
             st.markdown(f"<div class='promo'>🔥 {t['third_other']}</div>", unsafe_allow_html=True)
         else:
             st.info(t["generic"], icon="💡")
+        minimum_required = result.travel + settings.buy_minutes + settings.eat_minutes
+        if minimum_required > settings.break_minutes + 1e-9:
+            st.warning(t["route_warning"].format(mins=minimum_required, breaks=settings.break_minutes))
+        elif result.probability == 0:
+            st.warning(t["queue_warning"])
+        elif result.probability == 1:
+            st.caption(t["perfect_sample"].format(count=result.sample_count))
         st.caption(t["note"])
         with st.expander(t["detail"]):
             st.write(t["detail_text"])
@@ -400,6 +420,7 @@ with plot_left:
     with st.container(border=True):
         st.subheader(t["compare"])
         st.caption(t["compare_note"])
+        st.caption(t["compare_route"].format(start=settings.origin, end=settings.destination, eat=settings.eat_minutes))
         colors = ["#f2ae75" if r.floor == settings.buffet else "#b9f68b" for r in compared]
         fig = go.Figure(go.Bar(
             x=[r.probability * 100 for r in compared],
