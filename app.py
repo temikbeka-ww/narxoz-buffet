@@ -890,5 +890,3 @@ with st.expander(t["formulas"]):
 
     st.markdown(f"**Week 5 — {t['w5']}**")
     st.latex(r"f_i=\frac{n_i}{n}")
-
-    st.caption(t["math_note"])
