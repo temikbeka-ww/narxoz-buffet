@@ -3,19 +3,19 @@
 
 from statistics import mean
 
-import streamlit as st
 import plotly.graph_objects as go
+import streamlit as st
 
 from model import (
-    DEFAULT_OBSERVATIONS,
     CHOICE_WEIGHTS,
+    DEFAULT_OBSERVATIONS,
     Settings,
-    evaluate,
     all_buffets,
     best_buffet,
-    law_of_total_probability,
-    independence_check,
+    evaluate,
     group_for,
+    independence_check,
+    law_of_total_probability,
 )
 
 st.set_page_config(
@@ -29,187 +29,144 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
-html, body, [data-testid="stAppViewContainer"] {
-    background: #F5F7FC !important;
-    color: #192B47;
-    font-family: Manrope, system-ui, sans-serif;
+html,body,[data-testid="stAppViewContainer"] {
+    background:#F5F7FC!important;
+    color:#20334D;
+    font-family:Manrope,system-ui,sans-serif;
 }
-
 [data-testid="stHeader"] {
-    background: transparent !important;
+    background:transparent!important;
 }
-
 .block-container {
-    max-width: 1120px;
-    padding-top: 1.1rem;
-    padding-bottom: 3rem;
+    max-width:1120px;
+    padding-top:1.2rem;
+    padding-bottom:3rem;
 }
-
-h1, h2, h3, p {
-    font-family: Manrope, system-ui, sans-serif;
-}
-
 .hero {
-    background: linear-gradient(
-        125deg, #123773 0%, #2255AE 100%
-    );
-    color: #FFFFFF;
-    border-radius: 20px;
-    padding: 27px 30px;
-    margin: 6px 0 22px;
-    box-shadow: 0 16px 35px #163C7825;
+    padding:27px 30px;
+    border-radius:19px;
+    background:linear-gradient(115deg,#123671,#2458B7);
+    box-shadow:0 12px 32px #16418A22;
+    margin:6px 0 22px;
 }
-
 .hero .brand {
-    color: #C9DEFF;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: .14em;
+    font-size:11px;
+    color:#CEDFFF;
+    letter-spacing:.15em;
+    font-weight:800;
 }
-
-.hero .heading {
-    font-size: clamp(26px, 3.8vw, 39px);
-    font-weight: 800;
-    letter-spacing: -.045em;
-    line-height: 1.2;
-    margin: 14px 0 0;
-    color: white;
+.hero h1 {
+    font-size:clamp(27px,4vw,40px);
+    font-weight:800;
+    letter-spacing:-.045em;
+    color:white!important;
+    margin:15px 0 0;
 }
-
 .panel-title {
-    color: #183B79;
-    font-size: 18px;
-    font-weight: 800;
-    margin: 0 0 12px;
+    font-size:18px;
+    font-weight:800;
+    color:#183A79;
+    margin:0 0 13px;
 }
-
 [data-testid="stVerticalBlockBorderWrapper"] {
-    border: 1px solid #DCE5F3 !important;
-    background: #FFFFFF !important;
-    border-radius: 17px !important;
-    box-shadow: 0 6px 20px #183A7510;
+    border:1px solid #DCE5F2!important;
+    border-radius:17px!important;
+    background:white!important;
+    box-shadow:0 7px 24px #173A7510;
 }
-
 [data-testid="stVerticalBlockBorderWrapper"] > div {
-    background: transparent !important;
+    background:transparent!important;
 }
-
-.stButton > button {
-    min-height: 43px;
-    border-radius: 10px !important;
-    border: 1px solid #C9D7ED !important;
-    font-weight: 750 !important;
-    transition: transform .12s, border-color .12s;
+.stButton>button {
+    border-radius:10px!important;
+    min-height:42px!important;
+    border:1px solid #CDDAEE!important;
+    font-weight:750!important;
 }
-
-.stButton > button[kind="primary"] {
-    background: #2455BE !important;
-    color: white !important;
-    border-color: #2455BE !important;
+.stButton>button[kind="primary"] {
+    background:#2556C4!important;
+    color:#fff!important;
+    border-color:#2556C4!important;
 }
-
-.stButton > button[kind="secondary"] {
-    background: #F6F9FF !important;
-    color: #214477 !important;
+.stButton>button[kind="secondary"] {
+    background:#F5F8FF!important;
+    color:#214575!important;
 }
-
-.stButton > button:hover {
-    border-color: #2455BE !important;
-    transform: translateY(-1px);
+.stButton>button:hover {
+    border-color:#2556C4!important;
 }
-
-.probability {
-    border-radius: 16px;
-    padding: 19px 21px;
-    background: linear-gradient(
-        130deg, #EAF1FF, #F3F7FF
-    );
-    border: 1px solid #D0E0FF;
+.prob {
+    border:1px solid #CCDCFF;
+    border-radius:15px;
+    background:linear-gradient(120deg,#E9F0FF,#F5F8FF);
+    padding:20px;
 }
-
-.probability .name {
-    color: #49648E;
-    font-size: 13px;
-    font-weight: 750;
+.prob .label {
+    font-size:13px;
+    color:#45628E;
+    font-weight:750;
 }
-
-.probability .number {
-    color: #18469A;
-    font-size: clamp(45px, 6vw, 68px);
-    font-weight: 800;
-    letter-spacing: -.055em;
-    line-height: 1.25;
-    margin: 5px 0;
+.prob .number {
+    font-size:clamp(47px,6vw,70px);
+    font-weight:800;
+    letter-spacing:-.06em;
+    line-height:1.15;
+    color:#17449B;
+    margin:10px 0;
 }
-
-.probability .detail {
-    color: #425A80;
-    font-size: 13px;
+.prob .description {
+    font-size:13px;
+    color:#3D5983;
 }
-
-.mini-stat {
-    background: #F3F7FE;
-    border: 1px solid #E0E9F8;
-    border-radius: 13px;
-    padding: 13px 16px;
-    margin-top: 13px;
+.minicard {
+    border-radius:12px;
+    background:#F0F5FD;
+    border:1px solid #DEE8F8;
+    padding:15px;
+    margin:14px 0;
 }
-
-.mini-stat .value {
-    font-size: 22px;
-    font-weight: 800;
-    color: #1B4BA7;
+.minicard b {
+    font-size:23px;
+    color:#184BA0;
 }
-
-.mini-stat .label {
-    font-size: 12px;
-    color: #567094;
-    margin-top: 2px;
+.minicard small {
+    display:block;
+    color:#587096;
+    margin-top:5px;
 }
-
 [data-testid="stMetric"] {
-    background: #F5F8FE;
-    border: 1px solid #E2EAF7;
-    border-radius: 12px;
-    padding: 11px 13px;
+    background:#F5F8FE;
+    padding:13px;
+    border-radius:12px;
+    border:1px solid #E1EAF7;
 }
-
 [data-testid="stMetricValue"] {
-    color: #1A427D;
+    color:#183E83;
 }
-
 [data-testid="stExpander"] {
-    border: 1px solid #DAE4F2;
-    border-radius: 12px;
-    background: white;
+    background:white;
+    border:1px solid #DAE4F3;
+    border-radius:12px;
 }
-
 [data-testid="stExpander"] summary {
-    background: #F5F8FF !important;
-    border-radius: 10px;
+    background:#F3F7FF!important;
+    border-radius:10px;
 }
-
 [data-testid="stExpander"] summary p {
-    color: #28466F !important;
+    color:#204275!important;
 }
-
-[data-testid="stProgressBar"] > div > div {
-    background-color: #2455BE;
-}
-
 hr {
-    border-color: #E2EAF5 !important;
+    border-color:#E1EAF6!important;
 }
-
-@media (max-width: 650px) {
+@media(max-width:650px) {
     .block-container {
-        padding: 9px 13px 28px;
+        padding:10px 12px 30px;
     }
     .hero {
-        padding: 20px;
+        padding:21px;
     }
-    .probability .number {
-        font-size: 48px;
+    .hero h1 {
+        font-size:28px;
     }
 }
 </style>
@@ -217,125 +174,100 @@ hr {
 
 
 # RU / EN
-LANG = {
-    "title": (
-        "Успеешь на следующую пару?",
-        "Will you make it to class on time?"
-    ),
-    "route": ("1. Твой маршрут", "1. Your route"),
-    "start": (
-        "Где закончилась пара?",
-        "Previous class floor"
-    ),
-    "buffet": (
-        "На каком этаже буфет?",
-        "Buffet floor"
-    ),
-    "end": (
-        "Где следующая пара?",
-        "Next class floor"
-    ),
-    "shortcuts": ("Быстрый выбор", "Quick routes"),
-    "three": ("Остаться на 3-м", "Stay on floor 3"),
-    "five": ("С 5-го на 3-й", "Floor 5 to 3"),
-    "best": ("Лучший буфет", "Best buffet"),
-    "settings": (
-        "2. Время и очередь",
-        "2. Time and queue"
-    ),
-    "queue": (
-        "Ожидание в очереди, мин",
-        "Queue waiting time, min"
-    ),
-    "eat": (
-        "Время на еду, мин",
-        "Eating time, min"
-    ),
-    "extra": ("Другие настройки", "More settings"),
-    "break": (
-        "Длительность перемены, мин",
-        "Break duration, min"
-    ),
-    "buy": (
-        "Покупка и оплата, мин",
-        "Buying and paying, min"
-    ),
-    "pace": ("Скорость ходьбы", "Walking speed"),
-    "fast": ("Быстро", "Fast"),
-    "normal": ("Обычно", "Normal"),
-    "slow": ("Не спеша", "Slow"),
-    "forecast": ("Твой результат", "Your result"),
-    "chance": (
-        "Шанс успеть на пару",
-        "Chance of arriving on time"
-    ),
-    "cases": (
-        "Успеваешь в {success} из {total} вариантов очереди",
-        "On time in {success} of {total} queue cases"
-    ),
-    "left": (
-        "Остаётся на еду",
-        "Time available for eating"
-    ),
-    "late": (
-        "Не хватает времени",
-        "Time shortfall"
-    ),
-    "walk": ("Переходы", "Walking"),
-    "wait": ("Очередь", "Queue"),
-    "total": ("Общее время", "Total time"),
-    "calc": ("Расчёт", "Calculation"),
-    "compare": (
-        "3. Сравнение этажей",
-        "3. Compare buffet floors"
-    ),
-    "floor": ("Этаж", "Floor"),
-    "distribution": (
-        "4. Время в очереди",
-        "4. Queue waiting times"
-    ),
-    "waitaxis": (
-        "Ожидание, мин",
-        "Waiting time, min"
-    ),
-    "frequency": (
-        "Доля вариантов, %",
-        "Share of cases, %"
-    ),
-    "formulas": (
-        "Формулы Week 1–5",
-        "Formulas: Weeks 1–5"
-    ),
-    "w1": ("Маршруты и события", "Routes and events"),
-    "w2": (
-        "Частота успеха",
-        "Share of successful cases"
-    ),
-    "w3": (
-        "Условная вероятность",
-        "Conditional probability"
-    ),
-    "w3b": (
-        "Полная вероятность",
-        "Total probability"
-    ),
-    "w4": (
-        "Независимость событий",
-        "Independence of events"
-    ),
-    "w5": (
-        "Частоты ожидания",
-        "Waiting-time frequencies"
-    ),
-    "math_note": (
-        "Для расчётов используются демонстрационные варианты очереди, а не измерения Narxoz.",
-        "Calculations use example queue times, not measured Narxoz data."
-    ),
+TEXT = {
+    "ru": {
+        "title": "Успеешь на следующую пару?",
+        "route": "1. Выбери маршрут",
+        "origin": "Где закончилась пара?",
+        "buffet": "На каком этаже буфет?",
+        "destination": "Где следующая пара?",
+        "quick": "Быстрые сценарии",
+        "same": "Остаться на 3-м",
+        "cross": "С 5-го на 3-й",
+        "best": "Лучший буфет",
+        "settings": "2. Время и очередь",
+        "queue": "Сколько минут ждёшь в очереди?",
+        "eat": "Сколько минут хочешь поесть?",
+        "more": "Дополнительные настройки",
+        "break": "Перемена (мин)",
+        "buy": "Покупка и оплата (мин)",
+        "pace": "Темп ходьбы",
+        "fast": "Быстрый",
+        "normal": "Обычный",
+        "slow": "Медленный",
+        "result": "Твой прогноз",
+        "prob": "Шанс успеть на пару вовремя",
+        "cases": "Успеваешь в {s} из {n} вариантов очереди",
+        "remain": "Остаётся на еду",
+        "short": "Не хватает времени",
+        "walk": "Переходы",
+        "wait": "Очередь",
+        "purchase": "Покупка",
+        "total": "Всё время с едой",
+        "min": "мин",
+        "how": "Как рассчитано?",
+        "compare": "3. Сравни буфеты",
+        "floor": "Этаж буфета",
+        "distribution": "4. Время ожидания",
+        "wait_axis": "Минуты ожидания",
+        "share": "Доля случаев, %",
+        "math": "Формулы Week 1–5",
+        "w1": "События и комбинации маршрутов",
+        "w2": "Вероятность",
+        "w3": "Условная вероятность",
+        "w3full": "Полная вероятность",
+        "w4": "Независимость событий",
+        "w5": "Распределение частот",
+    },
+    "en": {
+        "title": "Will you make it to class on time?",
+        "route": "1. Choose your route",
+        "origin": "Previous class floor?",
+        "buffet": "Buffet floor?",
+        "destination": "Next class floor?",
+        "quick": "Quick scenarios",
+        "same": "Stay on floor 3",
+        "cross": "Floor 5 to 3",
+        "best": "Best buffet",
+        "settings": "2. Time and queue",
+        "queue": "How many minutes in the queue?",
+        "eat": "How many minutes to eat?",
+        "more": "More settings",
+        "break": "Break (min)",
+        "buy": "Buying and paying (min)",
+        "pace": "Walking speed",
+        "fast": "Fast",
+        "normal": "Normal",
+        "slow": "Slow",
+        "result": "Your forecast",
+        "prob": "Chance of arriving on time",
+        "cases": "On time in {s} of {n} queue cases",
+        "remain": "Time available for eating",
+        "short": "Time shortfall",
+        "walk": "Walking",
+        "wait": "Queue",
+        "purchase": "Buying",
+        "total": "Total including food",
+        "min": "min",
+        "how": "Show calculation",
+        "compare": "3. Compare buffets",
+        "floor": "Buffet floor",
+        "distribution": "4. Waiting time",
+        "wait_axis": "Waiting time (min)",
+        "share": "Share of cases, %",
+        "math": "Formulas: Weeks 1–5",
+        "w1": "Events and route combinations",
+        "w2": "Probability",
+        "w3": "Conditional probability",
+        "w3full": "Total probability",
+        "w4": "Independence of events",
+        "w5": "Frequency distribution",
+    },
 }
 
 
 # DEFAULT VALUES
-DEFAULT_STATE = {
+DEFAULTS = {
     "lang": "ru",
     "origin": 3,
     "buffet": 3,
@@ -346,54 +278,57 @@ DEFAULT_STATE = {
     "pace": "normal",
 }
 
-for key, default in DEFAULT_STATE.items():
-    if key not in st.session_state:
-        st.session_state[key] = default
+for key, value in DEFAULTS.items():
+    if (
+        st.session_state.get(key) is None
+        or (
+            key == "pace"
+            and st.session_state.get(key)
+            not in ("fast", "normal", "slow")
+        )
+    ):
+        st.session_state[key] = value
 
-if st.session_state.get("lang") not in ("ru", "en"):
+if st.session_state.lang not in ("ru", "en"):
     st.session_state.lang = "ru"
-
-if st.session_state.get("pace") not in (
-    "fast", "normal", "slow"
-):
-    st.session_state.pace = "normal"
 
 
 # QUEUE DATA
+# Keep queue values separate from temporary slider keys.
 MEANS = {
     key: mean(values)
     for key, values in DEFAULT_OBSERVATIONS.items()
 }
 
-for group, average in MEANS.items():
-    key = f"waiting_{group}"
-    value = st.session_state.get(key)
+if "queue_values" not in st.session_state:
+    st.session_state.queue_values = {
+        key: round(avg * 2) / 2
+        for key, avg in MEANS.items()
+    }
+
+for group, avg in MEANS.items():
+    value = st.session_state.queue_values.get(group)
 
     if (
         not isinstance(value, (int, float))
         or not 0 <= value <= 25
     ):
-        st.session_state[key] = round(average * 2) / 2
+        st.session_state.queue_values[group] = (
+            round(avg * 2) / 2
+        )
 
 
 # LANGUAGE SWITCH
 st.radio(
     "Language",
-    ["ru", "en"],
+    ("ru", "en"),
     key="lang",
     horizontal=True,
-    format_func=lambda value: value.upper(),
+    format_func=lambda x: x.upper(),
     label_visibility="collapsed",
 )
 
-language_index = (
-    0 if st.session_state.lang == "ru" else 1
-)
-
-t = {
-    key: pair[language_index]
-    for key, pair in LANG.items()
-}
+t = TEXT[st.session_state.lang]
 
 
 # HEADER
@@ -403,7 +338,7 @@ st.markdown(
         <div class="brand">
             T / TEMIKBEK · PROJECT ONE · NARXOZ
         </div>
-        <div class="heading">{t['title']}</div>
+        <h1>{t['title']}</h1>
     </div>
     """,
     unsafe_allow_html=True,
@@ -415,7 +350,7 @@ def change_floor(key, floor):
     st.session_state[key] = floor
 
 
-def route(origin, buffet, destination):
+def set_route(origin, buffet, destination):
     st.session_state.update(
         origin=origin,
         buffet=buffet,
@@ -423,7 +358,7 @@ def route(origin, buffet, destination):
     )
 
 
-def current_settings():
+def settings_now():
     s = st.session_state
 
     return Settings(
@@ -435,53 +370,63 @@ def current_settings():
         eat_minutes=s.eat_minutes,
         pace_factor={
             "fast": 0.85,
-            "normal": 1,
+            "normal": 1.0,
             "slow": 1.2,
-        }.get(s.pace, 1),
+        }.get(s.pace, 1.0),
     )
 
 
-def adjusted_observations():
-    result = {}
+def queue_data():
+    output = {}
 
-    for group, times in DEFAULT_OBSERVATIONS.items():
-        shift = (
-            st.session_state[f"waiting_{group}"]
-            - MEANS[group]
+    for group, vals in DEFAULT_OBSERVATIONS.items():
+        chosen = st.session_state.queue_values.get(
+            group,
+            round(MEANS[group] * 2) / 2,
         )
 
-        result[group] = [
-            max(0, round(value + shift, 2))
-            for value in times
+        difference = chosen - MEANS[group]
+
+        output[group] = [
+            max(0.0, round(v + difference, 2))
+            for v in vals
         ]
 
-    return result
+    return output
 
 
-def choose_best():
+def on_wait_change(group):
+    value = st.session_state.get(f"_wait_{group}")
+
+    if isinstance(value, (int, float)):
+        st.session_state.queue_values[group] = float(value)
+
+
+def select_best():
     st.session_state.buffet = best_buffet(
-        current_settings(),
-        adjusted_observations(),
+        settings_now(),
+        queue_data(),
     )
 
 
-def floor_buttons(text, key):
-    st.markdown(f"**{text}**")
+def floor_buttons(label, key):
+    st.markdown(f"**{label}**")
+
     columns = st.columns(5, gap="small")
 
-    for floor, col in enumerate(columns, 1):
+    for i, col in enumerate(columns, start=1):
         with col:
             st.button(
-                str(floor),
-                key=f"{key}_{floor}",
+                str(i),
+                key=f"floor_{key}_{i}",
                 use_container_width=True,
                 type=(
                     "primary"
-                    if st.session_state[key] == floor
+                    if st.session_state[key] == i
                     else "secondary"
                 ),
                 on_click=change_floor,
-                args=(key, floor),
+                args=(key, i),
             )
 
 
@@ -499,33 +444,34 @@ with left:
             unsafe_allow_html=True,
         )
 
-        floor_buttons(t["start"], "origin")
+        floor_buttons(t["origin"], "origin")
         floor_buttons(t["buffet"], "buffet")
-        floor_buttons(t["end"], "destination")
+        floor_buttons(t["destination"], "destination")
 
-        st.markdown(f"**{t['shortcuts']}**")
+        st.markdown(f"**{t['quick']}**")
 
-        btn1, btn2, btn3 = st.columns(
-            3, gap="small"
-        )
+        a, b, c = st.columns(3, gap="small")
 
-        btn1.button(
-            t["three"],
-            on_click=route,
+        a.button(
+            t["same"],
+            key="same",
+            on_click=set_route,
             args=(3, 3, 3),
             use_container_width=True,
         )
 
-        btn2.button(
-            t["five"],
-            on_click=route,
+        b.button(
+            t["cross"],
+            key="cross",
+            on_click=set_route,
             args=(5, 3, 5),
             use_container_width=True,
         )
 
-        btn3.button(
+        c.button(
             t["best"],
-            on_click=choose_best,
+            key="best",
+            on_click=select_best,
             use_container_width=True,
         )
 
@@ -543,18 +489,23 @@ with left:
         st.markdown(f"**{t['queue']}**")
 
         st.slider(
-            "Queue minutes",
+            "Queue waiting minutes",
             min_value=0.0,
             max_value=25.0,
+            value=float(
+                st.session_state.queue_values[group]
+            ),
             step=0.5,
-            key=f"waiting_{group}",
+            key=f"_wait_{group}",
+            on_change=on_wait_change,
+            args=(group,),
             label_visibility="collapsed",
         )
 
         st.markdown(f"**{t['eat']}**")
 
         st.slider(
-            "Eat minutes",
+            "Eating minutes",
             min_value=0.0,
             max_value=15.0,
             step=0.5,
@@ -562,13 +513,14 @@ with left:
             label_visibility="collapsed",
         )
 
-        with st.expander(t["extra"]):
+        with st.expander(t["more"]):
             st.markdown(f"**{t['break']}**")
 
             st.slider(
-                "Break",
+                "Break minutes",
                 min_value=5,
                 max_value=30,
+                step=1,
                 key="break_minutes",
                 label_visibility="collapsed",
             )
@@ -576,7 +528,7 @@ with left:
             st.markdown(f"**{t['buy']}**")
 
             st.slider(
-                "Buy",
+                "Buying minutes",
                 min_value=0.5,
                 max_value=4.0,
                 step=0.5,
@@ -587,44 +539,45 @@ with left:
             st.markdown(f"**{t['pace']}**")
 
             st.radio(
-                "Pace",
-                ["fast", "normal", "slow"],
+                "Walking pace",
+                ("fast", "normal", "slow"),
                 key="pace",
+                format_func=lambda x: t[x],
                 horizontal=True,
-                format_func=lambda value: t[value],
                 label_visibility="collapsed",
             )
 
 
-# PROBABILITY CALCULATION
-settings = current_settings()
-observations = adjusted_observations()
+# CALCULATIONS
+settings = settings_now()
+data = queue_data()
 
-forecast = evaluate(settings, observations)
-comparisons = all_buffets(settings, observations)
+forecast = evaluate(settings, data)
+comparisons = all_buffets(settings, data)
 
-probability = 100 * forecast.probability
+probability = forecast.probability * 100
+unit = t["min"]
 
 
-# RESULT
+# RESULTS
 with right:
     with st.container(border=True):
         st.markdown(
-            f"<div class='panel-title'>{t['forecast']}</div>",
+            f"<div class='panel-title'>{t['result']}</div>",
             unsafe_allow_html=True,
         )
 
         st.markdown(
             f"""
-            <div class="probability">
-                <div class="name">{t['chance']}</div>
+            <div class="prob">
+                <div class="label">{t['prob']}</div>
                 <div class="number">
                     {probability:.1f}%
                 </div>
-                <div class="detail">
+                <div class="description">
                     {t['cases'].format(
-                        success=forecast.success_count,
-                        total=forecast.sample_count
+                        s=forecast.success_count,
+                        n=forecast.sample_count
                     )}
                 </div>
             </div>
@@ -634,112 +587,113 @@ with right:
 
         st.progress(float(forecast.probability))
 
-        margin = forecast.average_margin
-
-        if margin >= 0:
-            main_value = forecast.average_eating_window
-            caption = t["left"]
+        if forecast.average_margin >= 0:
+            label = t["remain"]
+            duration = max(
+                0.0,
+                forecast.average_eating_window
+            )
         else:
-            main_value = abs(margin)
-            caption = t["late"]
-
-        unit = (
-            "мин"
-            if st.session_state.lang == "ru"
-            else "min"
-        )
+            label = t["short"]
+            duration = abs(forecast.average_margin)
 
         st.markdown(
             f"""
-            <div class="mini-stat">
-                <div class="value">
-                    {max(0, main_value):.1f} {unit}
-                </div>
-                <div class="label">{caption}</div>
+            <div class="minicard">
+                <b>{duration:.1f} {unit}</b>
+                <small>{label}</small>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-        one, two = st.columns(2)
-        three, four = st.columns(2)
+        m1, m2 = st.columns(2)
+        m3, m4 = st.columns(2)
 
-        one.metric(
+        m1.metric(
             t["walk"],
             f"{forecast.travel:.1f} {unit}",
         )
 
-        two.metric(
+        m2.metric(
             t["wait"],
             f"{forecast.average_wait:.1f} {unit}",
         )
 
-        three.metric(
-            t["buy"],
+        m3.metric(
+            t["purchase"],
             f"{settings.buy_minutes:.1f} {unit}",
         )
 
-        four.metric(
+        m4.metric(
             t["total"],
             f"{forecast.average_total:.1f} {unit}",
         )
 
-        with st.expander(t["calc"]):
+        with st.expander(t["how"]):
             st.write(
                 f"{forecast.travel:.1f} + "
                 f"{forecast.average_wait:.1f} + "
                 f"{settings.buy_minutes:.1f} + "
-                f"{settings.eat_minutes:.1f} "
-                f"= {forecast.average_total:.1f} {unit}"
+                f"{settings.eat_minutes:.1f} = "
+                f"{forecast.average_total:.1f} {unit}"
             )
 
             st.write(
-                f"P ≈ {forecast.success_count} / "
-                f"{forecast.sample_count} "
-                f"= {probability:.1f}%"
+                f"P ≈ {forecast.success_count}/"
+                f"{forecast.sample_count} = "
+                f"{probability:.1f}%"
             )
 
 
 # CHARTS
 st.divider()
 
-graph1, graph2 = st.columns(2, gap="large")
+chart_left, chart_right = st.columns(
+    2,
+    gap="large",
+)
 
-with graph1:
+with chart_left:
     with st.container(border=True):
         st.markdown(
             f"<div class='panel-title'>{t['compare']}</div>",
             unsafe_allow_html=True,
         )
 
-        pcts = [
-            result.probability * 100
-            for result in comparisons
+        values = [
+            r.probability * 100
+            for r in comparisons
         ]
 
-        chart = go.Figure(
+        figure = go.Figure(
             go.Bar(
-                x=[str(i) for i in range(1, 6)],
-                y=pcts,
-                marker_color=[
-                    "#2455BE"
-                    if i == settings.buffet
-                    else "#9BB8EB"
+                x=[
+                    str(i)
                     for i in range(1, 6)
                 ],
+                y=values,
                 text=[
-                    f"{value:.0f}%"
-                    for value in pcts
+                    f"{v:.0f}%"
+                    for v in values
                 ],
                 textposition="outside",
+                marker_color=[
+                    "#2456C4"
+                    if i == settings.buffet
+                    else "#95B2EB"
+                    for i in range(1, 6)
+                ],
             )
         )
 
-        chart.update_layout(
+        figure.update_layout(
             template="plotly_white",
             height=290,
             showlegend=False,
-            margin=dict(l=12, r=10, t=25, b=30),
+            margin=dict(
+                l=12, r=10, t=25, b=30
+            ),
             xaxis=dict(
                 title=t["floor"],
                 showgrid=False,
@@ -747,20 +701,20 @@ with graph1:
             yaxis=dict(
                 title="%",
                 range=[0, 112],
-                gridcolor="#E4EAF6",
+                gridcolor="#E5ECF6",
             ),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
         )
 
         st.plotly_chart(
-            chart,
+            figure,
             use_container_width=True,
             config={"displayModeBar": False},
         )
 
 
-with graph2:
+with chart_right:
     with st.container(border=True):
         st.markdown(
             f"<div class='panel-title'>{t['distribution']}</div>",
@@ -768,88 +722,91 @@ with graph2:
         )
 
         waits = forecast.observed_waits
-
         width = 2 if max(waits) <= 20 else 5
 
-        starts = range(
+        positions = range(
             0,
             int(max(waits) // width) * width + 1,
             width,
         )
 
-        ranges = [
+        items = [
             (
-                start,
+                low,
                 sum(
-                    start <= value < start + width
-                    for value in waits
+                    low <= v < low + width
+                    for v in waits
                 ),
             )
-            for start in starts
+            for low in positions
         ]
 
-        active = [
-            (start, count)
-            for start, count in ranges
-            if count
+        items = [
+            (low, count)
+            for low, count in items
+            if count > 0
         ]
 
-        bars = [
+        portions = [
             100 * count / len(waits)
-            for _, count in active
+            for _, count in items
         ]
 
-        chart = go.Figure(
+        fig = go.Figure(
             go.Bar(
                 x=[
-                    f"{start}–{start + width}"
-                    for start, _ in active
+                    f"{low}–{low + width}"
+                    for low, _ in items
                 ],
-                y=bars,
-                marker_color="#189B96",
+                y=portions,
+                marker_color="#159A96",
                 text=[
-                    f"{value:.1f}%"
-                    for value in bars
+                    f"{p:.1f}%"
+                    for p in portions
                 ],
                 textposition="outside",
             )
         )
 
-        chart.update_layout(
+        fig.update_layout(
             template="plotly_white",
             height=290,
             showlegend=False,
-            margin=dict(l=12, r=10, t=25, b=30),
+            margin=dict(
+                l=12, r=10, t=25, b=30
+            ),
             xaxis=dict(
-                title=t["waitaxis"],
+                title=t["wait_axis"],
                 showgrid=False,
             ),
             yaxis=dict(
-                title=t["frequency"],
-                range=[0, 110],
+                title=t["share"],
+                range=[0, 112],
                 ticksuffix="%",
-                gridcolor="#E4EAF6",
+                gridcolor="#E5ECF6",
             ),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
         )
 
         st.plotly_chart(
-            chart,
+            fig,
             use_container_width=True,
             config={"displayModeBar": False},
         )
 
 
-# WEEKS 1–5
-with st.expander(t["formulas"]):
+# FORMULAS WEEK 1–5
+with st.expander(t["math"]):
     st.markdown(f"**Week 1 — {t['w1']}**")
     st.latex(r"N=5\times5\times5=125")
 
     st.markdown(f"**Week 2 — {t['w2']}**")
-    st.latex(r"\widehat{P}(A)=\frac{n(A)}{n}")
+    st.latex(
+        r"\widehat P(A)=\frac{n(A)}{n}"
+    )
     st.write(
-        f"{forecast.success_count} / "
+        f"{forecast.success_count}/"
         f"{forecast.sample_count} = "
         f"{probability:.1f}%"
     )
@@ -859,24 +816,26 @@ with st.expander(t["formulas"]):
         r"P(A\mid B)=\frac{P(A\cap B)}{P(B)}"
     )
 
-    st.markdown(f"**Week 3 — {t['w3b']}**")
+    st.markdown(f"**Week 3 — {t['w3full']}**")
     st.latex(
         r"P(A)=\sum_{i=1}^{5}P(A\mid B_i)P(B_i)"
     )
 
-    combined = law_of_total_probability(
+    p_total = law_of_total_probability(
         comparisons,
         CHOICE_WEIGHTS["equal"],
     )
+
     st.write(
-        f"P(A) = {combined:.3f} "
-        f"= {combined * 100:.1f}%"
+        f"P(A) = {100 * p_total:.1f}%"
     )
 
     st.markdown(f"**Week 4 — {t['w4']}**")
-    st.latex(r"P(A\cap B)=P(A)\cdot P(B)")
+    st.latex(
+        r"P(A\cap B)\stackrel{?}{=}P(A)P(B)"
+    )
 
-    p_a, p_b, joint, product = independence_check(
+    _, _, joint, product = independence_check(
         comparisons,
         CHOICE_WEIGHTS["equal"],
     )
@@ -886,7 +845,12 @@ with st.expander(t["formulas"]):
         if abs(joint - product) < 1e-12
         else "≠"
     )
-    st.write(f"{joint:.4f} {sign} {product:.4f}")
+
+    st.write(
+        f"{joint:.4f} {sign} {product:.4f}"
+    )
 
     st.markdown(f"**Week 5 — {t['w5']}**")
-    st.latex(r"f_i=\frac{n_i}{n}")
+    st.latex(
+        r"f_i=\frac{n_i}{n}"
+    )
