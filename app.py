@@ -1,558 +1,303 @@
-"""TEMIKBEK Project One — single-page Streamlit campus buffet probability lab.
-Run: streamlit run app.py
+"""TEMIKBEK Project One — classroom-first, bilingual Streamlit buffet calculator.
+
+All probabilities below are relative frequencies over editable illustrative waiting
+cases, not measured predictions for Narxoz University.
+
+Start: streamlit run app.py
 """
 from __future__ import annotations
 
 import copy
 import csv
 import io
-from math import floor
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from model import (
-    CHOICE_WEIGHTS, DEFAULT_OBSERVATIONS, Settings, all_buffets,
-    best_buffet, evaluate, independence_check, parse_waits,
-)
+from model import (CHOICE_WEIGHTS, DEFAULT_OBSERVATIONS, Settings,
+                   all_buffets, best_buffet, evaluate, independence_check,
+                   parse_waits)
 
-st.set_page_config(
-    page_title="TEMIKBEK — Narxoz Buffet Rush",
-    page_icon="🍱",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+st.set_page_config(page_title="TEMIKBEK | Narxoz Buffet Rush", page_icon="🥪",
+                   layout="wide", initial_sidebar_state="collapsed")
 
-CSS = """
+st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;800&display=swap');
-html, body, [data-testid="stAppViewContainer"] {font-family:'DM Sans',system-ui,sans-serif;}
-[data-testid="stAppViewContainer"] {background:radial-gradient(ellipse 65% 28% at 55% 1%,#1e443d 0%,#0d1a1b 78%,#0b1618 100%) fixed;}
-[data-testid="stHeader"] {background:transparent;}
-.block-container {max-width:1190px;padding-top:1.7rem;padding-bottom:4rem;}
-[data-testid="stAppViewContainer"] h1, [data-testid="stAppViewContainer"] h2,
-[data-testid="stAppViewContainer"] h3, [data-testid="stAppViewContainer"] h4,
-[data-testid="stAppViewContainer"] p, [data-testid="stAppViewContainer"] label,
-[data-testid="stAppViewContainer"] [data-testid="stMarkdownContainer"] {color:#e8f5ef;}
-[data-testid="stAppViewContainer"] [data-testid="stCaptionContainer"] p {color:#b9cfc2;}
-h1,h2,h3 {font-family:'Space Grotesk',system-ui,sans-serif;letter-spacing:-.04em;}
-.hero{padding:12px 0 24px;}
-.headbar{display:flex;align-items:center;gap:12px;margin-bottom:29px;}
-.logo{background:#c9fa89;color:#122719;width:50px;height:50px;display:flex;align-items:center;justify-content:center;border-radius:15px;font:800 31px 'Space Grotesk';transform:rotate(-5deg);box-shadow:0 6px 30px #a8fa8f28;}
-.brand{font:800 16px 'Space Grotesk';letter-spacing:.13em;color:#effff3;line-height:1.55;}
-.brand small{display:block;font:600 10px 'DM Sans';color:#a0b9ad;letter-spacing:.2em;}
-.eyebrow{color:#b8f98e;letter-spacing:.21em;font-size:12px;font-weight:800;margin-bottom:12px;}
-.hero h1{font-family:'Space Grotesk';font-size:clamp(36px,5vw,64px);line-height:1.09;margin:0 0 14px;font-weight:800;letter-spacing:-.055em;color:#f2fff2;}
-.hero h1 span{color:#c9fa89;}
-.hero p{font-size:16px;color:#b6c9bd;max-width:700px;line-height:1.7;margin:0 0 8px;}
-.pill{display:inline-block;border:1px solid #4b755d;color:#c9fa89;border-radius:40px;font-size:11px;font-weight:800;letter-spacing:.07em;padding:6px 12px;margin-top:12px;}
-.note{font-size:13px;line-height:1.65;color:#a9bdaf;}
-.promo{border:1px solid #3b6250;padding:14px 18px;border-radius:16px;background:linear-gradient(110deg,#1b4134,#16312e);color:#e4ffe2;margin:9px 0 15px;font-size:14px;line-height:1.7;}
-.section-kicker{color:#b7fa87;font-size:11px;letter-spacing:.13em;font-weight:800;margin:8px 0;}
-.result{padding:18px 20px;background:linear-gradient(130deg,#224237,#18332e);border-radius:17px;border:1px solid #43654b;margin:6px 0 16px;}
-.result strong{font-family:'Space Grotesk';font-size:clamp(43px,5vw,66px);line-height:1.25;color:#d4ffab;letter-spacing:-.055em;display:block;}
-.result span{font-size:13px;color:#c2d8c7;}
-.mathcard{min-height:170px;border:1px solid #355348;background:#192e2c;border-radius:16px;padding:17px;margin-bottom:12px;}
-.mathcard .week{font-size:11px;color:#bff58a;font-weight:900;letter-spacing:.1em;}
-.mathcard .t{font-size:16px;font-weight:800;color:#f2fff0;margin:8px 0;}
-.mathcard .f{font-size:14px;font-weight:700;color:#fff0d0;margin-bottom:8px;overflow-wrap:anywhere;}
-.mathcard .d{color:#b7c9bf;font-size:12px;line-height:1.65;}
-[data-testid="stVerticalBlockBorderWrapper"] > div{border-color:#2f4d45 !important;border-radius:18px !important;}
-.stButton > button[kind="primary"] {background:#c9fa89;color:#102318;border:1px solid #c9fa89;font-weight:800;border-radius:11px;}
-.stButton > button[kind="secondary"] {background:#203632;border-color:#416056;color:#f1fff0;border-radius:11px;font-weight:700;}
-.stButton > button {min-height:42px;}
-[data-testid="stMetric"] {background:#1b3530;border-radius:14px;padding:12px 15px;border:1px solid #34584c;}
-[data-testid="stMetricLabel"]{font-size:13px;}
-[data-testid="stMetricValue"]{font-family:'Space Grotesk';}
-hr {border-color:#34564b;}
-@media (max-width:660px){.block-container{padding-left:14px;padding-right:14px;padding-top:10px}.hero h1{font-size:39px}.mathcard{min-height:auto}.headbar{margin-bottom:20px}}
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
+html,body,[data-testid="stAppViewContainer"]{font-family:'DM Sans',system-ui,sans-serif;background:#F6F8FC;color:#1B2940}
+[data-testid="stHeader"]{background:transparent}
+.block-container{max-width:1160px;padding-top:1.1rem;padding-bottom:3.5rem}
+.stApp h1,.stApp h2,.stApp h3,.stApp p,.stApp label{color:#1B2940}
+.hero{background:linear-gradient(110deg,#152C62,#233C7E 55%,#194F69);padding:24px 30px 26px;border-radius:22px;color:white;margin:4px 0 20px;box-shadow:0 16px 38px #233c7e22}
+.brand{color:#BFE7FC;font-weight:800;letter-spacing:.15em;font-size:11px}
+.hero h1{font-size:clamp(30px,4vw,49px);line-height:1.13;color:white!important;letter-spacing:-.035em;margin:13px 0 8px}
+.hero h1 em{font-style:normal;color:#B9FAAB}
+.hero p{color:#ECF4FF!important;font-size:15px;margin-bottom:0;max-width:700px}
+.eyebrow{font-size:11px;letter-spacing:.12em;color:#3A5CD1;font-weight:800;margin-bottom:3px}
+.card-title{font-size:20px;font-weight:800;color:#162B54;margin-bottom:5px}
+[data-testid="stVerticalBlockBorderWrapper"]{border:1px solid #DFE6F0!important;border-radius:18px!important;background:white!important;box-shadow:0 7px 24px #1c32600b}
+[data-testid="stVerticalBlockBorderWrapper"] > div{background:transparent!important}
+.stButton>button{border-radius:11px!important;min-height:43px!important;font-weight:800!important;border:1px solid #CED8E7!important;box-shadow:none!important}
+.stButton>button[kind="primary"]{background:#2555C7!important;border-color:#2555C7!important;color:white!important}
+.stButton>button[kind="secondary"]{background:#F5F7FD!important;color:#21365B!important}
+.stButton>button:hover{border-color:#2555C7!important}
+.stRadio [role="radiogroup"]{gap:11px}
+[data-testid="stMetric"]{background:#F2F6FF;border:1px solid #E0E8F9;border-radius:14px;padding:11px 14px}
+[data-testid="stMetricValue"]{color:#173C8B}
+.result-panel{background:#EAF4F5;border:1px solid #C9E5E2;border-radius:17px;padding:15px 20px;margin:5px 0 15px}
+.result-panel strong{font-size:clamp(36px,4.2vw,51px);font-weight:800;color:#123B72;display:block;line-height:1.15;margin:5px 0}
+.result-panel span{color:#376177;font-weight:700;font-size:12px}
+.highlight{background:#F0F5FF;border-left:4px solid #2555C7;border-radius:12px;padding:12px 15px;color:#1E3B72;font-size:13px;line-height:1.55;margin:8px 0 15px}
+.tiny{color:#64768D;font-size:12px;line-height:1.5}
+.mathitem{padding:12px;border-radius:12px;background:#F2F5FC;margin:6px 0}
+.mathitem b{color:#173C8B}.mathitem code{color:#1C479F}
+hr{border-color:#E0E8F2}
+@media(max-width:650px){.hero{padding:21px}.hero h1{font-size:32px}.block-container{padding:1rem 13px 2rem}}
 </style>
-"""
-st.markdown(CSS, unsafe_allow_html=True)
+""",unsafe_allow_html=True)
 
-TEXT = {
-    "ru": {
-        "title": "Еда или <span>пара вовремя?</span>",
-        "intro": "У тебя 15 минут на перемене. Выбери этажи, купи еду и проверь, успеешь ли на следующую пару.",
-        "tag": "ПРОЕКТ ПО ВЕРОЯТНОСТИ · НЕДЕЛИ 1–5",
-        "route": "🧭 Твой маршрут",
-        "origin": "01 · Где закончилась пара?",
-        "buffet": "02 · В какой буфет идёшь?",
-        "destination": "03 · Где следующая пара?",
-        "quick": "Быстрые сценарии",
-        "same3": "🍱 С 3-го на 3-й",
-        "popular": "🔥 Буфет 3-го этажа",
-        "cross": "🏃 С 5-го на 3-й",
-        "safe": "🎓 Хочу успеть",
-        "crowd": "Очередь в буфете",
-        "pace": "Скорость ходьбы",
-        "quiet": "Мало людей",
-        "normal": "Обычно",
-        "busy": "Большая очередь",
-        "fast": "Быстро",
-        "slow": "Не спеша",
-        "break": "Перемена, минут",
-        "buy": "Покупка и оплата, минут",
-        "eat": "Сколько минут хочешь поесть?",
-        "result": "ТВОЙ ПРОГНОЗ",
-        "chance": "Шанс успеть до начала пары",
-        "success": "УСПЕВАЕШЬ В УЧЕБНОЙ МОДЕЛИ",
-        "uncertain": "РЕЗУЛЬТАТ ЗАВИСИТ ОТ ОЧЕРЕДИ",
-        "late": "ВЫСОКИЙ РИСК ОПОЗДАТЬ",
-        "travel": "Переход между этажами",
-        "wait": "Средняя очередь",
-        "total": "Общее время (включая еду)",
-        "eatwindow": "Осталось минут на еду",
-        "margin": "Запас до начала пары",
-        "note": "Проценты — доля подходящих примеров времени ожидания. Это не официальные измерения Narxoz; при других очередях результат может отличаться.",
-        "route_warning": "Даже если очереди нет, на этот маршрут, покупку и еду нужно {mins:.1f} мин при перемене {breaks:.0f} мин. Поэтому 0% — ограничение времени, а не ошибка графика.",
-        "queue_warning": "В данном наборе ожиданий нет ни одного случая, который помещается в перемену. Попробуй сократить время на еду или выбрать более близкий буфет.",
-        "perfect_sample": "Все {count} примеров помещаются в перемену. 100% относится к учебной таблице, а не означает гарантию в реальности.",
-        "compare_route": "Для маршрута {start} → буфет → {end}; еда {eat:g} мин. Далёкие буфеты могут дать 0% просто из-за переходов.",
-        "third_same": "Важное уточнение: если предыдущая и следующая пары на 3-м этаже, а ты идёшь в буфет 3-го, после очереди и оплаты обычно остаётся 8–10 минут на еду при стандартных настройках этого примера.",
-        "third_other": "Если идти на 3-й из другого этажа, ты попадёшь в очередь позже. Мы считаем время перехода и отдельную очередь, не добавляя дорогу дважды.",
-        "generic": "Поменяй этаж или длительность еды: процент сразу пересчитается по тем же наблюдениям — без случайных скачков.",
-        "successes": "успешных случаев из",
-        "detail": "🧮 Откуда получился процент?",
-        "detail_text": "В каждом наблюдении: переходы + очередь + покупка + еда. Успех, если общее время не превышает длительность перемены.",
-        "compare": "📊 Сравни 5 буфетов",
-        "compare_note": "Вероятность успеть при тех же начальном и конечном этажах, но с другим этажом буфета.",
-        "freq": "📉 Частоты времени ожидания",
-        "freq_note": "Сколько раз встречалось конкретное время ожидания в выбранном буфете.",
-        "choice": "Предположение о выборе буфета",
-        "equal": "Каждый этаж одинаково вероятен (20%)",
-        "hot": "Популярный 3-й этаж (50%)",
-        "choice_note": "Доли выбора условные. Они используются только в формуле полной вероятности и проверке независимости.",
-        "data": "📝 Наблюдения: можно изменить",
-        "data_help": "Это не измеренная статистика, а настраиваемые примеры. На 3-м этаже ожидание 4–6 мин, если ты уже на 3-м, и обычно больше для тех, кто пришёл с другого этажа. Переход между этажами учитывается отдельно. Введи реальные замеры через запятую (минуты), чтобы улучшить оценку.",
-        "data_groups": "Группа",
-        "data_values": "Очередь, минуты (через запятую)",
-        "save": "✅ Применить данные",
-        "reset": "↩️ Вернуть примеры",
-        "download": "⬇️ Скачать CSV",
-        "saved": "Данные применены. Графики и расчёты обновлены.",
-        "reset_done": "Учебный набор восстановлен.",
-        "data_error": "Проверь таблицу: для каждой строки нужно хотя бы одно число от 0 до 120 минут (через запятую).",
-        "math": "📚 Математика курса: Week 1–5",
-        "math_desc": "Каждая тема связана с одной задачей: успеть купить еду и вернуться на пару.",
-        "w1": "События и комбинаторика",
-        "w1f": "N = 5 × 5 × 5 = 125",
-        "w1d": "Есть 125 маршрутов (старт → буфет → аудитория), если все три этажа можно выбирать свободно. A — успеть; B — выбрать буфет 3-го этажа.",
-        "w2": "Пространство вероятностей",
-        "w2f": "P(A) = n(A) / N",
-        "w2d": "Для равновероятных исходов. Для примеров разного ожидания считаем относительную частоту успехов: m / n.",
-        "w3": "Условная вероятность",
-        "w3f": "P(A | B) = P(A ∩ B) / P(B)",
-        "w3d": "Шанс прийти вовремя при условии конкретного этажа буфета. Смотрим только подходящие наблюдения.",
-        "w3b": "Полная вероятность",
-        "w3bf": "P(A) = Σ P(A | Bᵢ)P(Bᵢ)",
-        "w3bd": "Общий шанс успеть складывается из вероятностей пяти буфетов с учётом частоты их выбора.",
-        "w4": "Независимость событий",
-        "w4f": "P(A ∩ B) = P(A) · P(B)",
-        "w4d": "Проверяем, связано ли событие «выбрал 3-й этаж» с событием «успел». Это тест внутри принятой модели.",
-        "w5": "Частоты и графики",
-        "w5f": "fᵢ = nᵢ / n",
-        "w5d": "Группируем времена ожидания, считаем абсолютные и относительные частоты, строим график.",
-        "math_details": "Показать числовую подстановку для Weeks 2–4",
-        "total_formula": "Полная вероятность — все пять буфетов",
-        "independent_formula": "Сравнение для независимости",
-        "independent_yes": "В рамках заданной модели равенство выполняется.",
-        "independent_no": "В рамках заданной модели равенство не выполняется.",
-        "footer": "TEMIKBEK · PROJECT ONE · NARXOZ BUFFET RUSH · PYTHON / STREAMLIT",
-        "not_official": "Учебные данные можно заменить результатами собственных анонимных наблюдений.",
-        "floor": "этаж",
-        "minutes": "мин",
-        "frequency": "наблюдений",
-        "sample": "Использованный набор",
-    },
-    "en": {
-        "title": "Food or <span>class on time?</span>",
-        "intro": "You have a 15-minute break. Choose your floors, grab food, and check whether you can return to class on time.",
-        "tag": "PROBABILITY PROJECT · WEEKS 1–5",
-        "route": "🧭 Your route",
-        "origin": "01 · Where was your previous class?",
-        "buffet": "02 · Which buffet will you visit?",
-        "destination": "03 · Where is your next class?",
-        "quick": "Quick scenarios",
-        "same3": "🍱 Floor 3 → Floor 3",
-        "popular": "🔥 Buffet on floor 3",
-        "cross": "🏃 From floor 5 to 3",
-        "safe": "🎓 Help me arrive on time",
-        "crowd": "Queue level",
-        "pace": "Walking speed",
-        "quiet": "Quiet",
-        "normal": "Normal",
-        "busy": "Busy",
-        "fast": "Fast",
-        "slow": "Slow",
-        "break": "Break duration (minutes)",
-        "buy": "Buying and paying (minutes)",
-        "eat": "How many minutes do you want to eat?",
-        "result": "YOUR FORECAST",
-        "chance": "Chance of arriving on time",
-        "success": "ON TIME IN THE EXAMPLE MODEL",
-        "uncertain": "DEPENDS ON THE QUEUE",
-        "late": "HIGH CHANCE OF BEING LATE",
-        "travel": "Walking time",
-        "wait": "Average waiting time",
-        "total": "Total (including eating)",
-        "eatwindow": "Minutes available to eat",
-        "margin": "Time left before class",
-        "note": "Percentages are proportions of example waiting times that fit this trip. These are not official Narxoz measurements.",
-        "route_warning": "Even with no queue, walking, buying, and eating require {mins:.1f} min, but the break is {breaks:.0f} min. The 0% result comes from the route, not a chart error.",
-        "queue_warning": "None of the example waits fit within the break. Try less eating time or a closer buffet.",
-        "perfect_sample": "All {count} example waits fit within the break. 100% describes this example dataset, not a real-world guarantee.",
-        "compare_route": "For {start} → buffet → {end}; eating {eat:g} min. Distant floors may score 0% because of travel alone.",
-        "third_same": "Important: if both your previous and next classes are on floor 3 and you visit the floor 3 buffet, the normal example leaves around 8–10 minutes to eat after waiting and paying.",
-        "third_other": "Arriving from another floor means joining the queue later. Walking time and waiting time are modeled separately, without double-counting the trip.",
-        "generic": "Change a floor or eating duration. The percentage will update from the same observations without random jumps.",
-        "successes": "successful cases out of",
-        "detail": "🧮 How is this percentage calculated?",
-        "detail_text": "For every observation: walking + queue + purchase + eating. Success means the total is no longer than the break.",
-        "compare": "📊 Compare all 5 buffets",
-        "compare_note": "Chance of arriving on time with the same previous and next class floors, changing only the buffet.",
-        "freq": "📉 Waiting-time frequencies",
-        "freq_note": "How many observations fall within each waiting-time interval for the selected buffet.",
-        "choice": "Assumption about buffet choice",
-        "equal": "All floors equally likely (20% each)",
-        "hot": "Floor 3 is popular (50%)",
-        "choice_note": "These selection shares are hypothetical and only affect the total-probability and independence examples.",
-        "data": "📝 Edit observations",
-        "data_help": "These are editable examples, not measured statistics. Floor 3 assumes 4–6 min waits for students already there, and longer waits for arrivals from other floors. Walking is counted separately. Replace these values with actual timed waits (comma-separated minutes).",
-        "data_groups": "Group",
-        "data_values": "Waiting times (comma-separated minutes)",
-        "save": "✅ Apply data",
-        "reset": "↩️ Reset examples",
-        "download": "⬇️ Download CSV",
-        "saved": "New observations applied. The results and charts have been recalculated.",
-        "reset_done": "Example dataset restored.",
-        "data_error": "Check data: each row needs at least one number from 0 to 120 minutes, comma-separated.",
-        "math": "📚 Course math: Weeks 1–5",
-        "math_desc": "Every concept is tied to one problem: buying food and getting to class on time.",
-        "w1": "Events and combinatorics",
-        "w1f": "N = 5 × 5 × 5 = 125",
-        "w1d": "125 possible routes (start → buffet → class) if all three floors may be freely chosen. A = on time; B = choose buffet on floor 3.",
-        "w2": "Probability space",
-        "w2f": "P(A) = n(A) / N",
-        "w2d": "For equally likely outcomes. For different observed waits, use relative frequency: successes / total observations.",
-        "w3": "Conditional probability",
-        "w3f": "P(A | B) = P(A ∩ B) / P(B)",
-        "w3d": "Probability of being on time given a specific buffet floor. We look at the matching observations.",
-        "w3b": "Law of total probability",
-        "w3bf": "P(A) = Σ P(A | Bᵢ)P(Bᵢ)",
-        "w3bd": "The overall chance of being on time combines five buffet-specific rates weighted by how often each buffet is chosen.",
-        "w4": "Independent events",
-        "w4f": "P(A ∩ B) = P(A) · P(B)",
-        "w4d": "Check whether choosing floor 3 and being on time are independent within the stated model.",
-        "w5": "Frequencies and charts",
-        "w5f": "fᵢ = nᵢ / n",
-        "w5d": "Group waiting times into intervals, count absolute and relative frequencies, and plot them.",
-        "math_details": "Show numeric calculations for Weeks 2–4",
-        "total_formula": "Total probability — all five buffets",
-        "independent_formula": "Independence comparison",
-        "independent_yes": "The equality holds within the stated model.",
-        "independent_no": "The equality does not hold within the stated model.",
-        "footer": "TEMIKBEK · PROJECT ONE · NARXOZ BUFFET RUSH · PYTHON / STREAMLIT",
-        "not_official": "Replace the sample data with your own anonymous observations whenever available.",
-        "floor": "floor",
-        "minutes": "min",
-        "frequency": "observations",
-        "sample": "Dataset used",
-    },
-}
+LANG = {
+"ru":{
+"hero":"Успеешь поесть <em>до пары?</em>","subtitle":"Одна перемена — 15 минут. Выбирай этажи, сравнивай очереди и проверяй свой маршрут.",
+"route":"01 · Твой маршрут","origin":"Где закончилась пара?","buffet":"Где покупаешь еду?","dest":"Где следующая пара?",
+"quick":"Попробуй готовый сценарий","three":"🍟 На третьем","cross":"🏃 С пятого на третий","safe":"✅ Лучший буфет",
+"settings":"Настроить условия","duration":"Длина перемены, минут","eat":"Сколько минут хочешь есть?","buy":"Оплата и покупка, минут",
+"crowd":"Очередь","crowd_quiet":"Небольшая","crowd_normal":"Обычная","crowd_busy":"Большая","pace":"Скорость","pace_fast":"Быстро","pace_normal":"Обычно","pace_slow":"Медленно",
+"result":"02 · Твой результат","remain":"Время на еду до начала пары","on_time":"При выбранных условиях успеваешь","late":"Времени не хватает","travel":"Дорога","wait":"Очередь (средняя)","total":"Путь + очередь + покупка + еда","margin":"Запас до пары","chance":"Оценка успеть с желаемым временем на еду","from":"из","cases":"примеров",
+"third_info":"На 3-м этаже: если предыдущая и следующая пары там же, после очереди и оплаты остаётся примерно 8–10 минут для еды.",
+"explain_zero_time":"Даже без очереди путь, оплата и желаемое время на еду не помещаются в перемену.",
+"explain_zero_queue":"По заданным примерам очередей свободного времени не хватает. Попробуй меньше минут на еду или другой буфет.",
+"explain_prob":"Процент — доля подходящих учебных примеров очереди, а не точное обещание, что ты успеешь.",
+"chart":"03 · Сравни этажи","chart_hint":"Тот же старт и следующая пара; меняется только этаж буфета.","freq":"04 · Очередь на выбранном этаже","freq_hint":"Распределение времени ожидания по интервалам.",
+"data":"✏️ Откуда данные? Изменить примеры","data_help":"Время ожидания в минутах. Эти значения придуманы для объяснения формул, а не измерены в Narxoz. После наблюдений можно заменить их своими.",
+"group":"Сценарий","values":"Минуты ожидания через запятую","apply":"Сохранить","reset":"Вернуть примеры","download":"Скачать CSV","saved":"Данные сохранены для этой сессии.","invalid":"Проверь значения: в каждой строке нужны числа от 0 до 120 через запятую.",
+"math":"📚 Формулы из Week 1–5","math_help":"Один проект — пять тем. Нажми, чтобы посмотреть формулы и подставленные значения.",
+"step":"Как получен мой процент?","total_prob":"Полная вероятность при выборе буфета","weights":"Как студенты выбирают этажи?","equal":"Все этажи поровну — по 20%","popular":"Третий этаж выбирают чаще — 50%", "independent":"Проверка независимости","notind":"В этой модели события не независимы.","ind":"В этой модели равенство соблюдается.",
+"disclaimer":"Статистика в демо — иллюстративная. Для реального прогноза нужны наблюдения в буфетах.",
+"floor":"этаж","minutes":"мин","count":"наблюдений","none":"Нет подходящих наблюдений",
+"math1":"Week 1 · События и комбинаторика","math2":"Week 2 · Вероятность","math3":"Week 3 · Условная вероятность и полная вероятность","math4":"Week 4 · Независимые события","math5":"Week 5 · Частоты и графики",
+},
+"en":{
+"hero":"Food or <em>class on time?</em>","subtitle":"One break — 15 minutes. Choose floors, compare queues, and plan your route.",
+"route":"01 · Your route","origin":"Where was your last class?","buffet":"Which buffet?","dest":"Where is your next class?",
+"quick":"Try a quick scenario","three":"🍟 Stay on floor 3","cross":"🏃 From floor 5 to 3","safe":"✅ Best buffet",
+"settings":"Adjust conditions","duration":"Break duration, minutes","eat":"How long do you want to eat?","buy":"Buying and paying, minutes",
+"crowd":"Queue size","crowd_quiet":"Short","crowd_normal":"Normal","crowd_busy":"Long","pace":"Walking speed","pace_fast":"Fast","pace_normal":"Normal","pace_slow":"Slow",
+"result":"02 · Your result","remain":"Minutes available to eat before class","on_time":"Enough time with these settings","late":"Not enough time","travel":"Walking","wait":"Average queue","total":"Walking + waiting + buying + eating","margin":"Time left before class","chance":"Observed-style rate of reaching class on time","from":"out of","cases":"example cases",
+"third_info":"On floor 3: if your previous and next classes are also there, around 8–10 minutes remain for eating after queuing and paying.",
+"explain_zero_time":"Even without a queue, walking, paying and your desired eating time exceed the break.",
+"explain_zero_queue":"None of the sample queues fit. Try a shorter meal or another buffet.",
+"explain_prob":"This percentage is a frequency across example queues, not a guarantee of arrival.",
+"chart":"03 · Compare five buffets","chart_hint":"Same start and next-class floors; only the buffet floor changes.","freq":"04 · Waiting times","freq_hint":"Frequency distribution of waiting-time intervals.",
+"data":"✏️ Edit the example waiting data","data_help":"Waiting times in minutes. These are learning examples, not Narxoz measurements. Replace them with real observations later.",
+"group":"Scenario","values":"Waits, comma-separated (min)","apply":"Save","reset":"Reset examples","download":"Download CSV","saved":"Data saved for this session.","invalid":"Check values: each row must contain comma-separated numbers between 0 and 120.",
+"math":"📚 Math covered in Weeks 1–5","math_help":"One project, five concepts. Open to see formulas using your current inputs.",
+"step":"How was my percentage calculated?","total_prob":"Total probability across buffet choices","weights":"How do students select floors?","equal":"Equal choices — 20% per floor","popular":"Floor 3 is popular — 50%", "independent":"Independence check","notind":"The events are not independent in this model.","ind":"The equation holds in this model.",
+"disclaimer":"Demo observations are illustrative. Real campus predictions need collected data.",
+"floor":"floor","minutes":"min","count":"observations","none":"No matching observations",
+"math1":"Week 1 · Events and combinations","math2":"Week 2 · Probability","math3":"Week 3 · Conditional and total probability","math4":"Week 4 · Independent events","math5":"Week 5 · Frequencies and charts",
+}}
 
-for key, val in {
-    "lang": "ru", "origin": 3, "buffet": 3, "destination": 3,
-    "crowd": "normal", "pace": "normal", "break_minutes": 15,
-    "buy_minutes": 1.0, "eat_minutes": 5.0,
-    "choice_weight": "equal", "editor_version": 0,
-}.items():
-    if key not in st.session_state:
-        st.session_state[key] = val
+if "language" not in st.session_state or st.session_state.language not in ("ru", "en"):
+    st.session_state.language = "ru"
 if "observations" not in st.session_state:
     st.session_state.observations = copy.deepcopy(DEFAULT_OBSERVATIONS)
+for key, val in {"origin":3,"buffet":3,"destination":3,"break_minutes":15,
+                 "buy_minutes":1.0,"eat_minutes":5.0,"crowd_choice":"normal",
+                 "pace_choice":"normal","weight_choice":"equal","editor_count":0}.items():
+    if key not in st.session_state:
+        st.session_state[key] = val
 
-lang = st.radio("Language / Язык", options=["ru", "en"],
-                horizontal=True, format_func=lambda s: "🇷🇺 RU" if s == "ru" else "🇬🇧 EN",
-                key="lang", label_visibility="collapsed")
-t = TEXT[lang]
+# Streamlit widget keys can be transient after a language toggle. Revalidate them.
+for key, choices in ("crowd_choice",("quiet","normal","busy")), ("pace_choice",("fast","normal","slow")), ("weight_choice",("equal","popular_third")):
+    if st.session_state.get(key) not in choices:
+        st.session_state[key] = choices[1] if key != "weight_choice" else "equal"
 
-st.markdown(f"""
-<div class="hero">
-  <div class="headbar"><div class="logo">T</div><div class="brand">TEMIKBEK<small>PROJECT ONE · NARXOZ</small></div></div>
-  <div class="eyebrow">{t['tag']}</div>
-  <h1>{t['title']}</h1>
-  <p>{t['intro']}</p>
-  <div class="pill">🍱 NARXOZ BUFFET RUSH · PYTHON / STREAMLIT</div>
-</div>
-""", unsafe_allow_html=True)
+st.radio("Language / Язык", ["ru", "en"], key="language", horizontal=True,
+         format_func=lambda v: "🇷🇺 Русский" if v == "ru" else "🇬🇧 English",
+         label_visibility="collapsed")
+t = LANG[st.session_state.language]
+st.markdown(f"""<div class='hero'><div class='brand'>T / TEMIKBEK · PROJECT ONE · NARXOZ</div>
+<h1>{t['hero']}</h1><p>{t['subtitle']}</p></div>""", unsafe_allow_html=True)
 
 
-def choose_floor(title: str, key: str):
+def select_floor(name: str, title: str):
     st.markdown(f"**{title}**")
     cols = st.columns(5, gap="small")
-    for val, col in enumerate(cols, 1):
+    for idx, col in enumerate(cols, start=1):
         with col:
-            lab = f"🔥 {val}" if key == "buffet" and val == 3 else str(val)
-            if st.button(lab, key=f"{key}_{val}", use_container_width=True,
-                         type="primary" if st.session_state[key] == val else "secondary"):
-                st.session_state[key] = val
-                st.rerun()
+            st.button(("🔥 " if name == "buffet" and idx == 3 else "")+str(idx),
+                      type="primary" if st.session_state[name] == idx else "secondary",
+                      key=f"floor_{name}_{idx}", use_container_width=True,
+                      on_click=st.session_state.update, args=({name:idx},))
 
 
-def use_scenario(name):
-    if name == "same":
-        st.session_state.origin, st.session_state.buffet, st.session_state.destination = 3, 3, 3
-        st.session_state.crowd, st.session_state.pace = "normal", "normal"
-        st.session_state.break_minutes = 15
-        st.session_state.buy_minutes, st.session_state.eat_minutes = 1.0, 8.0
-    elif name == "popular":
-        st.session_state.buffet = 3
-    elif name == "cross":
-        st.session_state.origin, st.session_state.buffet, st.session_state.destination = 5, 3, 5
-    elif name == "safe":
-        st.session_state.buffet = best_buffet(current_settings(), st.session_state.observations)
+def set_scenario(which: str):
+    if which == "three":
+        st.session_state.update(origin=3,buffet=3,destination=3,break_minutes=15,
+                                buy_minutes=1.0,eat_minutes=5.0,crowd_choice="normal",pace_choice="normal")
+    elif which == "cross":
+        st.session_state.update(origin=5,buffet=3,destination=5,break_minutes=15,
+                                buy_minutes=1.0,eat_minutes=5.0,crowd_choice="normal",pace_choice="normal")
+    elif which == "safe":
+        st.session_state.buffet = best_buffet(make_settings(),st.session_state.observations)
 
 
+def make_settings() -> Settings:
+    c = st.session_state
+    return Settings(origin=c.origin,buffet=c.buffet,destination=c.destination,
+      break_minutes=c.break_minutes,buy_minutes=c.buy_minutes,eat_minutes=c.eat_minutes,
+      crowd_factor={"quiet":.8,"normal":1.,"busy":1.25}.get(c.crowd_choice,1.),
+      pace_factor={"fast":.85,"normal":1.,"slow":1.2}.get(c.pace_choice,1.))
 
-def current_settings():
-    return Settings(
-        origin=st.session_state.origin,
-        buffet=st.session_state.buffet,
-        destination=st.session_state.destination,
-        break_minutes=st.session_state.break_minutes,
-        buy_minutes=st.session_state.buy_minutes,
-        eat_minutes=st.session_state.eat_minutes,
-        crowd_factor={"quiet": .8, "normal": 1, "busy": 1.3}[st.session_state.crowd],
-        pace_factor={"fast": .85, "normal": 1, "slow": 1.2}[st.session_state.pace],
-    )
-
-left, right = st.columns([1.05, .95], gap="large", vertical_alignment="top")
+left,right=st.columns([1.1,.9],gap="large",vertical_alignment="top")
 with left:
     with st.container(border=True):
-        st.subheader(t["route"])
-        choose_floor(t["origin"], "origin")
-        choose_floor(t["buffet"], "buffet")
-        choose_floor(t["destination"], "destination")
+        st.markdown(f"<div class='card-title'>🧭 {t['route']}</div>",unsafe_allow_html=True)
+        select_floor("origin",t["origin"])
+        select_floor("buffet",t["buffet"])
+        select_floor("destination",t["dest"])
         st.markdown(f"**{t['quick']}**")
-        quick_cols = st.columns(2)
-        with quick_cols[0]:
-            st.button(t["same3"], key="scenario_same", on_click=use_scenario,
-                      args=("same",), use_container_width=True)
-            st.button(t["cross"], key="scenario_cross", on_click=use_scenario,
-                      args=("cross",), use_container_width=True)
-        with quick_cols[1]:
-            st.button(t["popular"], key="scenario_popular", on_click=use_scenario,
-                      args=("popular",), use_container_width=True)
-            st.button(t["safe"], key="scenario_safe", on_click=use_scenario,
-                      args=("safe",), use_container_width=True)
-        st.divider()
-        select_a, select_b = st.columns(2)
-        with select_a:
-            st.selectbox(t["crowd"], options=["quiet", "normal", "busy"],
-                         format_func=lambda opt: t[opt], key="crowd")
-        with select_b:
-            st.selectbox(t["pace"], options=["fast", "normal", "slow"],
-                         format_func=lambda opt: t[opt], key="pace")
-        slider_a, slider_b = st.columns(2)
-        with slider_a:
-            st.slider(t["break"], 5, 30, key="break_minutes")
-            st.slider(t["buy"], .5, 4., step=.5, key="buy_minutes")
-        with slider_b:
-            st.slider(t["eat"], 0., 15., step=.5, key="eat_minutes")
-            st.caption(f"↓ 1.5 {t['minutes']} / ↑ 2.25 {t['minutes']} — "
-                       + ("на каждый этаж" if lang == "ru" else "per floor"))
+        buttons=st.columns(3,gap="small")
+        for col, name, key in zip(buttons,[t['three'],t['cross'],t['safe']],['three','cross','safe']):
+            with col: st.button(name,key=f"q_{key}",on_click=set_scenario,args=(key,),use_container_width=True)
+        with st.expander("⚙️ "+t["settings"]):
+            c1,c2=st.columns(2)
+            with c1:
+                st.slider(t["duration"],5,30,key="break_minutes")
+                st.slider(t["buy"],.5,4.,step=.5,key="buy_minutes")
+                st.selectbox(t["crowd"],("quiet","normal","busy"),key="crowd_choice",
+                             format_func=lambda x:t[f"crowd_{x}"])
+            with c2:
+                st.slider(t["eat"],0.,15.,step=.5,key="eat_minutes")
+                st.selectbox(t["pace"],("fast","normal","slow"),key="pace_choice",
+                             format_func=lambda x:t[f"pace_{x}"])
+                st.caption("↓ 1.5 min/floor · ↑ 2.25 min/floor")
 
-settings = current_settings()
-result = evaluate(settings, st.session_state.observations)
-compared = all_buffets(settings, st.session_state.observations)
-prob_pct = 100 * result.probability
-status = t["success"] if prob_pct >= 80 else t["uncertain"] if prob_pct >= 40 else t["late"]
+settings=make_settings()
+result=evaluate(settings,st.session_state.observations)
+results=all_buffets(settings,st.session_state.observations)
+prob_pct=100*result.probability
 
 with right:
     with st.container(border=True):
-        st.markdown(f"<div class='section-kicker'>{t['result']}</div>", unsafe_allow_html=True)
-        st.markdown(f"""<div class='result'><span>{t['chance']}</span>
-                     <strong>{prob_pct:.1f}%</strong><span>{status}</span></div>""", unsafe_allow_html=True)
-        st.progress(float(result.probability))
-        st.caption(f"{result.success_count} {t['successes']} {result.sample_count} · {t['sample']}: {result.group}")
-        m1, m2 = st.columns(2)
-        m3, m4 = st.columns(2)
-        m1.metric(t["travel"], f"{result.travel:.1f} {t['minutes']}")
-        m2.metric(t["wait"], f"{result.average_wait:.1f} {t['minutes']}")
-        m3.metric(t["total"], f"{result.average_total:.1f} {t['minutes']}")
-        m4.metric(t["eatwindow"], f"{result.average_eating_window:.1f} {t['minutes']}")
-        if settings.origin == settings.buffet == settings.destination == 3:
-            st.markdown(f"<div class='promo'>🍽️ {t['third_same']}<br><b>"
-                        f"{result.min_eating_window:.1f}–{result.max_eating_window:.1f} {t['minutes']}"
-                        f"</b></div>", unsafe_allow_html=True)
-        elif settings.buffet == 3 and settings.origin != 3:
-            st.markdown(f"<div class='promo'>🔥 {t['third_other']}</div>", unsafe_allow_html=True)
-        else:
-            st.info(t["generic"], icon="💡")
-        minimum_required = result.travel + settings.buy_minutes + settings.eat_minutes
-        if minimum_required > settings.break_minutes + 1e-9:
-            st.warning(t["route_warning"].format(mins=minimum_required, breaks=settings.break_minutes))
-        elif result.probability == 0:
-            st.warning(t["queue_warning"])
-        elif result.probability == 1:
-            st.caption(t["perfect_sample"].format(count=result.sample_count))
-        st.caption(t["note"])
-        with st.expander(t["detail"]):
-            st.write(t["detail_text"])
-            st.code(
-                f"Walk = {result.travel:.2f} min\n"
-                f"Mean wait = {result.average_wait:.2f} min\n"
-                f"Buy = {settings.buy_minutes:.2f} min\n"
-                f"Eat = {settings.eat_minutes:.2f} min\n"
-                f"Total = {result.travel:.2f} + {result.average_wait:.2f} + "
-                f"{settings.buy_minutes:.2f} + {settings.eat_minutes:.2f}"
-                f" = {result.average_total:.2f} min\n"
-                f"P(on time | chosen route) ≈ {result.success_count}/{result.sample_count}"
-                f" = {prob_pct:.1f}%",
-                language="text",
-            )
+        st.markdown(f"<div class='card-title'>🎯 {t['result']}</div>",unsafe_allow_html=True)
+        avg_available=result.average_eating_window
+        msg=t['on_time'] if result.average_margin>=0 else t['late']
+        st.markdown(f"<div class='result-panel'><span>{t['remain']}</span>"
+                    f"<strong>{avg_available:+.1f} {t['minutes']}</strong><span>{msg}</span></div>",
+                    unsafe_allow_html=True)
+        if settings.origin==settings.buffet==settings.destination==3 and settings.crowd_factor==1 and settings.buy_minutes==1:
+            st.markdown(f"<div class='highlight'>🍟 {t['third_info']}</div>",unsafe_allow_html=True)
+        m1,m2=st.columns(2)
+        m1.metric(t["travel"],f"{result.travel:.1f} {t['minutes']}")
+        m2.metric(t["wait"],f"{result.average_wait:.1f} {t['minutes']}")
+        m3,m4=st.columns(2)
+        m3.metric(t["total"],f"{result.average_total:.1f} {t['minutes']}")
+        m4.metric(t["margin"],f"{result.average_margin:+.1f} {t['minutes']}")
+        st.markdown(f"**{t['chance']}**")
+        st.progress(result.probability)
+        st.markdown(f"**{prob_pct:.1f}%** · {result.success_count} {t['from']} {result.sample_count} {t['cases']}")
+        if prob_pct == 0:
+            necessary=result.travel+settings.buy_minutes+settings.eat_minutes
+            st.warning(t["explain_zero_time"] if necessary>settings.break_minutes else t["explain_zero_queue"])
+        st.caption(t["explain_prob"])
+        with st.expander("🧮 "+t["step"]):
+            st.code(f"Travel = {result.travel:.1f} min\n"
+                    f"Mean queue = {result.average_wait:.1f} min\n"
+                    f"Buying = {settings.buy_minutes:.1f} min\n"
+                    f"Eating = {settings.eat_minutes:.1f} min\n"
+                    f"Total = {result.average_total:.1f} min\n"
+                    f"P(on time | route) ≈ {result.success_count}/{result.sample_count} = {prob_pct:.1f}%",language="text")
 
 st.divider()
-plot_left, plot_right = st.columns(2, gap="large")
-with plot_left:
+chart_a,chart_b=st.columns(2,gap="large")
+with chart_a:
     with st.container(border=True):
-        st.subheader(t["compare"])
-        st.caption(t["compare_note"])
-        st.caption(t["compare_route"].format(start=settings.origin, end=settings.destination, eat=settings.eat_minutes))
-        colors = ["#f2ae75" if r.floor == settings.buffet else "#b9f68b" for r in compared]
-        fig = go.Figure(go.Bar(
-            x=[r.probability * 100 for r in compared],
-            y=[f"{r.floor} {t['floor']}" for r in compared],
-            orientation="h", marker_color=colors,
-            text=[f"{r.probability*100:.0f}%" for r in compared],
-            textposition="outside", cliponaxis=False,
-            hovertemplate="%{y}: %{x:.1f}%<extra></extra>",
-        ))
-        fig.update_layout(
-            template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)", margin=dict(t=8, b=20, l=10, r=45),
-            height=290, xaxis=dict(range=[0, 112], title="%", showgrid=True, gridcolor="#2d4b42"),
-            yaxis=dict(autorange="reversed", showgrid=False), showlegend=False,
-            font=dict(color="#def5e5"),
-        )
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-with plot_right:
+        st.markdown(f"<div class='card-title'>📊 {t['chart']}</div>",unsafe_allow_html=True)
+        st.caption(t["chart_hint"])
+        vals=[r.probability*100 for r in results]
+        fig=go.Figure(go.Bar(x=[f"{i} {t['floor']}" for i in range(1,6)],y=vals,
+          marker_color=["#2555C7" if i==settings.buffet else "#88ADEB" for i in range(1,6)],
+          text=[f"{v:.0f}%" for v in vals],textposition="outside"))
+        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='rgba(0,0,0,0)',
+          height=290,showlegend=False,margin=dict(l=5,r=4,t=18,b=18),
+          yaxis=dict(range=[0,110],title="%",gridcolor="#E5EBF2"),
+          xaxis=dict(title="",showgrid=False),font=dict(color="#263B59"))
+        st.plotly_chart(fig,use_container_width=True,config={"displayModeBar":False})
+with chart_b:
     with st.container(border=True):
-        st.subheader(t["freq"])
-        st.caption(t["freq_note"])
-        step = 2 if max(result.observed_waits) <= 25 else 5
-        lows = list(range(0, int(max(result.observed_waits)) + step, step))
-        counts = [sum(low <= v < low + step for v in result.observed_waits) for low in lows]
-        # Include the endpoint of the final bin when samples hit a multiple of step.
-        bins = [(f"{low}–{low+step}", count) for low, count in zip(lows, counts) if count > 0]
-        figh = go.Figure(go.Bar(
-            x=[b[0] for b in bins], y=[b[1] for b in bins], marker_color="#b9f68b",
-            text=[b[1] for b in bins], textposition="outside",
-        ))
-        figh.update_layout(
-            template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)", margin=dict(t=8, b=20, l=10, r=12),
-            height=290, xaxis=dict(title=t["minutes"], showgrid=False),
-            yaxis=dict(title=t["frequency"], dtick=1, showgrid=True, gridcolor="#2d4b42"),
-            showlegend=False, font=dict(color="#def5e5"),
-        )
-        st.plotly_chart(figh, use_container_width=True, config={"displayModeBar": False})
+        st.markdown(f"<div class='card-title'>📈 {t['freq']}</div>",unsafe_allow_html=True)
+        st.caption(t["freq_hint"])
+        step=2 if max(result.observed_waits)<=20 else 5
+        end=int(max(result.observed_waits)//step)*step
+        bins=list(range(0,end+step,step))
+        counts=[sum(low<=x<low+step for x in result.observed_waits) for low in bins]
+        shown=[(low,cnt) for low,cnt in zip(bins,counts) if cnt]
+        fig2=go.Figure(go.Bar(x=[f"{b}–{b+step}" for b,c in shown],
+          y=[c for _,c in shown],marker_color="#2A9D8F",
+          text=[str(c) for _,c in shown],textposition="outside"))
+        fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='rgba(0,0,0,0)',
+          height=290,showlegend=False,margin=dict(l=5,r=4,t=18,b=18),
+          xaxis=dict(title=t['minutes']),yaxis=dict(dtick=1,gridcolor="#E5EBF2",title=t['count']),
+          font=dict(color="#263B59"))
+        st.plotly_chart(fig2,use_container_width=True,config={"displayModeBar":False})
 
 with st.expander(t["data"]):
-    st.write(t["data_help"])
-    group_labels = {
-        "1": "1", "2": "2", "3_same": "3 · same / с 3-го",
-        "3_other": "3 · other / с других", "4": "4", "5": "5",
-    }
-    rows = [{"Group": key, "Display": group_labels[key],
-             "Waits": ", ".join(f"{v:g}" for v in st.session_state.observations[key])}
-            for key in DEFAULT_OBSERVATIONS]
-    editor = st.data_editor(
-        pd.DataFrame(rows), hide_index=True, use_container_width=True,
-        column_config={
-            "Group": None,
-            "Display": st.column_config.TextColumn(t["data_groups"], disabled=True),
-            "Waits": st.column_config.TextColumn(t["data_values"], width="large"),
-        },
-        disabled=["Group", "Display"], num_rows="fixed",
-        key=f"observations_editor_{st.session_state.editor_version}",
-    )
-    ca, cb, cc = st.columns(3)
-    with ca:
-        if st.button(t["save"], use_container_width=True):
-            try:
-                new_observations = {row["Group"]: parse_waits(str(row["Waits"]))
-                                    for _, row in editor.iterrows()}
-                if set(new_observations) != set(DEFAULT_OBSERVATIONS):
-                    raise ValueError("Missing group")
-            except (ValueError, TypeError):
-                st.error(t["data_error"])
-            else:
-                st.session_state.observations = new_observations
-                st.session_state.editor_version += 1
-                st.success(t["saved"])
-                st.rerun()
-    with cb:
-        if st.button(t["reset"], use_container_width=True):
-            st.session_state.observations = copy.deepcopy(DEFAULT_OBSERVATIONS)
-            st.session_state.editor_version += 1
+    st.caption(t["data_help"])
+    names={"1":"1","2":"2","3_same":"3 · same","3_other":"3 · other","4":"4","5":"5"}
+    with st.form("obs_form"):
+        entered={}
+        ca,cb=st.columns(2)
+        for i,k in enumerate(DEFAULT_OBSERVATIONS):
+            with (ca if i%2==0 else cb):
+                entered[k]=st.text_input(names[k],value=", ".join(f"{x:g}" for x in st.session_state.observations[k]),key=f"obs_{k}")
+        submitted=st.form_submit_button(t["apply"],type="primary")
+    if submitted:
+        try:
+            changed={k:parse_waits(v) for k,v in entered.items()}
+        except ValueError: st.error(t["invalid"])
+        else:
+            st.session_state.observations=changed
+            st.success(t["saved"])
             st.rerun()
-    with cc:
-        out = io.StringIO()
-        writer = csv.writer(out)
-        writer.writerow(["buffet_floor", "arrival_group", "wait_minutes"])
-        for group, waits in st.session_state.observations.items():
-            for wait in waits:
-                writer.writerow(["3" if group.startswith("3") else group,
-                                 "same_floor" if group == "3_same" else "other_floor" if group == "3_other" else "all",
-                                 wait])
-        st.download_button(t["download"], data=out.getvalue().encode("utf-8-sig"),
-                           file_name="narxoz_buffet_observations.csv", mime="text/csv",
-                           use_container_width=True)
-    st.caption(t["not_official"])
+    if st.button(t["reset"],key="reset_examples"):
+        st.session_state.observations=copy.deepcopy(DEFAULT_OBSERVATIONS)
+        for k in DEFAULT_OBSERVATIONS:
+            st.session_state.pop(f"obs_{k}",None)
+        st.rerun()
+    stream=io.StringIO()
+    writer=csv.writer(stream)
+    writer.writerow(("scenario","wait_minutes","source"))
+    for k,observations in st.session_state.observations.items():
+        for v in observations: writer.writerow((k,v,"illustrative_or_user_entered"))
+    st.download_button(t["download"],stream.getvalue().encode('utf-8-sig'),
+                       file_name="buffet_waiting_times.csv",mime="text/csv")
 
 st.divider()
-st.subheader(t["math"])
-st.caption(t["math_desc"])
-MATH = [
-    ("WEEK 1", "w1", "w1f", "w1d"),
-    ("WEEK 2", "w2", "w2f", "w2d"),
-    ("WEEK 3", "w3", "w3f", "w3d"),
-    ("WEEK 3", "w3b", "w3bf", "w3bd"),
-    ("WEEK 4", "w4", "w4f", "w4d"),
-    ("WEEK 5", "w5", "w5f", "w5d"),
-]
-for begin in (0, 3):
-    columns = st.columns(3, gap="medium")
-    for col, (week, title, formula, desc) in zip(columns, MATH[begin:begin + 3]):
-        with col:
-            st.markdown(f"""<div class='mathcard'>
-              <div class='week'>{week}</div>
-              <div class='t'>{t[title]}</div>
-              <div class='f'>{t[formula]}</div>
-              <div class='d'>{t[desc]}</div>
-            </div>""", unsafe_allow_html=True)
+with st.expander(t["math"],expanded=False):
+    st.caption(t["math_help"])
+    st.markdown(f"**{t['math1']}**")
+    st.latex(r"N=5\cdot5\cdot5=125")
+    st.write("A = on time; B = choose buffet on floor 3; Ω = all routes (start, buffet, class).")
+    st.markdown(f"**{t['math2']}**")
+    st.latex(r"P(A)=\frac{n(A)}{N}")
+    st.write(f"Sample estimate for this route: {result.success_count} / {result.sample_count} = {prob_pct:.1f}% (equally weighted examples).")
+    st.markdown(f"**{t['math3']}**")
+    st.latex(r"P(A\mid B)=\frac{P(A\cap B)}{P(B)}")
+    st.write(f"P(on time | buffet floor {settings.buffet}, given route) ≈ {result.success_count}/{result.sample_count} = {prob_pct:.1f}%")
+    st.latex(r"P(A)=\sum_{i=1}^{5}P(A\mid B_i)P(B_i)")
+    weight=st.radio(t["weights"],("equal","popular_third"),key="weight_choice",horizontal=True,
+                    format_func=lambda v:t['equal'] if v=="equal" else t['popular'])
+    p_a,p_b,p_joint,p_product=independence_check(results,CHOICE_WEIGHTS[weight])
+    st.write(f"P(A) = {' + '.join(f'{r.probability:.2f}×{w:.2f}' for r,w in zip(results,CHOICE_WEIGHTS[weight]))} = {p_a:.3f} ({100*p_a:.1f}%)")
+    st.markdown(f"**{t['math4']}**")
+    st.latex(r"P(A\cap B)\stackrel{?}{=}P(A)\,P(B)")
+    st.write(f"P(A∩B) = {p_joint:.4f}; P(A)×P(B) = {p_a:.4f}×{p_b:.2f} = {p_product:.4f}. "
+             +(t['ind'] if abs(p_joint-p_product)<1e-12 else t['notind']))
+    st.markdown(f"**{t['math5']}**")
+    st.latex(r"f_i=\frac{n_i}{n}")
+    st.write(f"n = {result.sample_count}; chart above groups observed waiting times into intervals and counts their frequencies.")
 
-st.markdown(f"**{t['choice']}**")
-choice = st.radio("weights", ["equal", "popular_third"],
-                  format_func=lambda val: t["equal"] if val == "equal" else t["hot"],
-                  key="choice_weight", label_visibility="collapsed", horizontal=True)
-st.caption(t["choice_note"])
-weights = CHOICE_WEIGHTS[choice]
-p_a, p_b, joint, product = independence_check(compared, weights)
-with st.expander(t["math_details"]):
-    st.markdown(f"**WEEK 2–3 — {t['detail']}**")
-    st.latex(rf"\widehat P(A\mid B) = \frac{{{result.success_count}}}{{{result.sample_count}}} = {result.probability:.3f}")
-    st.markdown(f"**WEEK 3 — {t['total_formula']}**")
-    terms = " + ".join(f"{w:.2f} × {r.probability:.2f}" for w,r in zip(weights,compared))
-    st.code(f"P(A) = {terms} = {p_a:.3f} = {p_a*100:.1f}%", language="text")
-    st.markdown(f"**WEEK 4 — {t['independent_formula']}**")
-    st.code(f"P(B) = {p_b:.2f}\nP(A∩B) = P(A|B)×P(B) = {compared[2].probability:.3f}×{p_b:.2f} = {joint:.3f}\n"
-            f"P(A)×P(B) = {p_a:.3f}×{p_b:.2f} = {product:.3f}", language="text")
-    st.write(t["independent_yes"] if abs(joint-product) < 1e-10 else t["independent_no"])
-    st.caption(t["choice_note"])
-
-st.markdown(f"<div style='color:#8ea99b;text-align:center;font-size:12px;padding:28px 0 10px'>"
-            f"{t['footer']}</div>", unsafe_allow_html=True)
+st.caption(t["disclaimer"])
